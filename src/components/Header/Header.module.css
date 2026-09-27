@@ -1,0 +1,63 @@
+/* Контейнер хедера */
+.header {
+  background-color: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+/* Внутренний контейнер для центрирования */
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: var(--spacing-md) var(--spacing-lg);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-xl);
+}
+
+/* Логотип/название приложения */
+.logo {
+  font-size: var(--font-size-xl);
+  font-weight: 700;
+  color: var(--color-primary);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+/* Иконка логотипа */
+.logoIcon {
+  font-size: var(--font-size-2xl);
+}
+
+/* Навигация */
+.nav {
+  display: flex;
+  gap: var(--spacing-md);
+  align-items: center;
+}
+
+/* Ссылка навигации */
+.navLink {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  font-weight: 500;
+  transition: all 0.2s ease;
+  font-size: var(--font-size-base);
+}
+
+.navLink:hover {
+  color: var(--color-primary);
+  background-color: var(--color-background);
+}
+
+/* Активная ссылка */
+.navLinkActive {
+  color: var(--color-primary);
+  background-color: var(--color-background);
+}

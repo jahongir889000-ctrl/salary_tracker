@@ -1,0 +1,166 @@
+/* Контейнер списка операций */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+/* Отдельная строка операции */
+.item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md);
+  background-color: var(--color-surface);
+  border-radius: var(--radius-md);
+  border-left: 4px solid var(--color-border);
+  transition: all 0.2s ease;
+}
+
+.item:hover {
+  background-color: var(--color-background);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Цветовая индикация по типу операции */
+.income {
+  border-left-color: var(--color-success);
+}
+
+.expense {
+  border-left-color: var(--color-danger);
+}
+
+/* Иконка категории */
+.categoryIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  background-color: var(--color-background);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-size-xl);
+  flex-shrink: 0;
+}
+
+/* Основная информация об операции */
+.info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  min-width: 0;
+}
+
+/* Верхняя строка: категория и сумма */
+.topRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.category {
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Сумма операции */
+.amount {
+  font-size: var(--font-size-base);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.amountIncome {
+  color: var(--color-success);
+}
+
+.amountExpense {
+  color: var(--color-danger);
+}
+
+/* Нижняя строка: дата и комментарий */
+.bottomRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.date {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.comment {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+
+/* Контейнер кнопок действий */
+.actions {
+  display: flex;
+  gap: var(--spacing-xs);
+  flex-shrink: 0;
+}
+
+/* Кнопка действия (редактировать/удалить) */
+.actionButton {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-secondary);
+  transition: all 0.2s ease;
+  font-size: var(--font-size-lg);
+}
+
+.actionButton:hover {
+  background-color: var(--color-background);
+  color: var(--color-text);
+}
+
+.editButton:hover {
+  color: var(--color-primary);
+}
+
+.deleteButton:hover {
+  color: var(--color-danger);
+  background-color: rgba(239, 68, 68, 0.1);
+}
+
+/* Адаптивность для мобильных устройств */
+@media (max-width: 768px) {
+  .item {
+    padding: var(--spacing-sm);
+    gap: var(--spacing-sm);
+  }
+
+  .categoryIcon {
+    width: 36px;
+    height: 36px;
+    font-size: var(--font-size-lg);
+  }
+
+  .comment {
+    display: none;
+  }
+
+  .actionButton {
+    width: 28px;
+    height: 28px;
+    font-size: var(--font-size-base);
+  }
+}
