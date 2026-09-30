@@ -1,0 +1,176 @@
+/* ===== TRANSACTION LIST (футуристический стиль) ===== */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+/* ===== ЭЛЕМЕНТ СПИСКА ===== */
+.item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md);
+  background: rgba(15, 20, 53, 0.4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  transition: all var(--transition-fast);
+  animation: itemAppear 0.4s ease both;
+}
+
+@keyframes itemAppear {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.item:hover {
+  background: rgba(20, 25, 60, 0.6);
+  border-color: var(--color-border-hover);
+  transform: translateX(5px);
+  box-shadow: 0 4px 20px rgba(0, 240, 255, 0.1);
+}
+
+/* Цветовая индикация типа операции */
+.item.income {
+  border-left: 3px solid var(--color-income);
+}
+
+.item.expense {
+  border-left: 3px solid var(--color-expense);
+}
+
+/* ===== ИКОНКА КАТЕГОРИИ ===== */
+.categoryIcon {
+  font-size: 32px;
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-glass);
+  border-radius: var(--radius-md);
+  filter: drop-shadow(0 0 10px rgba(0, 240, 255, 0.3));
+}
+
+/* ===== ИНФОРМАЦИЯ ОБ ОПЕРАЦИИ ===== */
+.info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.topRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+}
+
+.category {
+  font-family: var(--font-display);
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  color: var(--color-text);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.amount {
+  font-family: var(--font-display);
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  text-shadow: 0 0 10px currentColor;
+}
+
+.amountIncome {
+  color: var(--color-income);
+}
+
+.amountExpense {
+  color: var(--color-expense);
+}
+
+.bottomRow {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  font-size: var(--font-size-sm);
+}
+
+.date {
+  color: var(--color-text-muted);
+}
+
+.comment {
+  color: var(--color-text-secondary);
+  font-style: italic;
+}
+
+/* ===== КНОПКИ ДЕЙСТВИЙ ===== */
+.actions {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+.actionButton {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  background: var(--color-glass);
+  border: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  transition: all var(--transition-fast);
+}
+
+.actionButton:hover {
+  transform: scale(1.1);
+}
+
+.editButton:hover {
+  background: rgba(0, 240, 255, 0.2);
+  border-color: var(--color-neon-cyan);
+  box-shadow: 0 0 15px rgba(0, 240, 255, 0.3);
+}
+
+.deleteButton:hover {
+  background: rgba(255, 42, 109, 0.2);
+  border-color: var(--color-expense);
+  box-shadow: 0 0 15px rgba(255, 42, 109, 0.3);
+}
+
+/* ===== АДАПТИВНОСТЬ ===== */
+@media (max-width: 768px) {
+  .item {
+    padding: var(--spacing-sm);
+  }
+
+  .categoryIcon {
+    width: 40px;
+    height: 40px;
+    font-size: 24px;
+  }
+
+  .category {
+    font-size: var(--font-size-sm);
+  }
+
+  .amount {
+    font-size: var(--font-size-base);
+  }
+
+  .actionButton {
+    width: 32px;
+    height: 32px;
+    font-size: 16px;
+  }
+}

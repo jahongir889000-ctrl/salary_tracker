@@ -10,6 +10,7 @@ function mapRowToIncome(row) {
   if (!row) return null;
   return {
     id: row.id,
+    type: 'income', // <-- ДОБАВЛЕНО
     amount: row.amount,
     date: row.date,
     category: row.category,

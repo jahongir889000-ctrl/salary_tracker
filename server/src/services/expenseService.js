@@ -10,6 +10,7 @@ function mapRowToExpense(row) {
   if (!row) return null;
   return {
     id: row.id,
+    type: 'expense', // <-- ДОБАВЛЕНО
     amount: row.amount,
     date: row.date,
     category: row.category,
@@ -19,7 +20,6 @@ function mapRowToExpense(row) {
     updatedAt: row.updated_at,
   };
 }
-
 /**
  * Получить все расходы с пагинацией и фильтрами
  * @param {Object} options - параметры запроса
