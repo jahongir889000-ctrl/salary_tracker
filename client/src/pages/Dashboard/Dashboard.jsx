@@ -6,12 +6,13 @@ import Modal from '../../components/Modal/Modal';
 import TransactionForm from '../../components/TransactionForm/TransactionForm';
 import TransactionList from '../../components/TransactionList/TransactionList';
 import { getBalance, getAllTransactions } from '../../services/summaryService';
-import { addIncome, deleteIncome } from '../../services/incomeService';
-import { addExpense, deleteExpense } from '../../services/expenseService';
+import { addIncome, updateIncome, deleteIncome } from '../../services/incomeService';
+import { addExpense, updateExpense, deleteExpense } from '../../services/expenseService';
 
 function Dashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [editingTransaction, setEditingTransaction] = useState(null);
   
   const [balanceData, setBalanceData] = useState({ totalIncome: 0, totalExpense: 0, balance: 0 });
   const [recentTransactions, setRecentTransactions] = useState([]);
@@ -35,20 +36,42 @@ function Dashboard() {
     }
   };
 
-  const handleOpenModal = () => setIsModalOpen(true);
-  const handleCloseModal = () => setIsModalOpen(false);
+  const handleOpenAddModal = () => {
+    setEditingTransaction(null);
+    setIsModalOpen(true);
+  };
+
+  const handleOpenEditModal = (transaction) => {
+    setEditingTransaction(transaction);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setEditingTransaction(null);
+  };
 
   const handleSubmit = async (data) => {
     try {
-      if (data.type === 'income') {
-        await addIncome(data);
+      if (editingTransaction?.id) {
+        // Режим редактирования
+        if (data.type === 'income') {
+          await updateIncome(editingTransaction.id, data);
+        } else {
+          await updateExpense(editingTransaction.id, data);
+        }
       } else {
-        await addExpense(data);
+        // Режим создания
+        if (data.type === 'income') {
+          await addIncome(data);
+        } else {
+          await addExpense(data);
+        }
       }
       await loadData();
       handleCloseModal();
     } catch (error) {
-      console.error('Ошибка при добавлении операции:', error);
+      console.error('Ошибка при сохранении операции:', error);
       alert('Не удалось сохранить операцию. Проверьте консоль.');
     }
   };
@@ -69,11 +92,6 @@ function Dashboard() {
       console.error('Ошибка при удалении операции:', error);
       alert('Не удалось удалить операцию.');
     }
-  };
-
-  const handleEdit = (transaction) => {
-    console.log('Редактировать операцию:', transaction);
-    alert('Редактирование будет подключено позже');
   };
 
   if (isLoading) {
@@ -112,17 +130,25 @@ function Dashboard() {
         
         <TransactionList
           transactions={recentTransactions}
-          onEdit={handleEdit}
+          onEdit={handleOpenEditModal}
           onDelete={handleDelete}
         />
       </div>
 
-      <button className={styles.addButton} onClick={handleOpenModal} title="Добавить операцию">
+      <button className={styles.addButton} onClick={handleOpenAddModal} title="Добавить операцию">
         +
       </button>
 
-      <Modal isOpen={isModalOpen} onClose={handleCloseModal} title="Новая операция">
-        <TransactionForm onSubmit={handleSubmit} onCancel={handleCloseModal} />
+      <Modal 
+        isOpen={isModalOpen} 
+        onClose={handleCloseModal} 
+        title={editingTransaction ? 'Редактировать операцию' : 'Новая операция'}
+      >
+        <TransactionForm 
+          onSubmit={handleSubmit} 
+          onCancel={handleCloseModal}
+          editData={editingTransaction}
+        />
       </Modal>
     </div>
   );

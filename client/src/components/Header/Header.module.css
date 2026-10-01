@@ -23,37 +23,33 @@
   }
 }
 
+/* ===== КОНТЕНТ HEADER — ЛОГОТИП СВЕРХУ, НАВИГАЦИЯ СНИЗУ, ВСЁ ПО ЦЕНТРУ ===== */
 .headerContent {
   max-width: 1400px;
+  width: 100%;
   margin: 0 auto;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--spacing-xl);
+  gap: var(--spacing-md);
 }
 
-/* ===== ЛОГОТИП ===== */
+/* ===== ЛОГОТИП (по центру сверху) ===== */
 .logo {
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);
   text-decoration: none;
-  transition: all var(--transition-fast);
+  transition: opacity var(--transition-fast);
 }
 
 .logo:hover {
-  transform: scale(1.05);
+  opacity: 0.9;
 }
 
 .logoIcon {
   font-size: 32px;
   filter: drop-shadow(0 0 10px var(--color-neon-cyan));
-  animation: rotate 20s linear infinite;
-}
-
-@keyframes rotate {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
 }
 
 .logoText {
@@ -69,10 +65,11 @@
   text-shadow: 0 0 20px rgba(0, 240, 255, 0.5);
 }
 
-/* ===== НАВИГАЦИЯ ===== */
+/* ===== НАВИГАЦИЯ (по центру под логотипом) ===== */
 .nav {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: var(--spacing-md);
 }
 
@@ -149,7 +146,7 @@
   }
 
   .headerContent {
-    gap: var(--spacing-md);
+    gap: var(--spacing-sm);
   }
 
   .logoText {
@@ -158,6 +155,8 @@
 
   .nav {
     gap: var(--spacing-xs);
+    flex-wrap: wrap;
+    justify-content: center;
   }
 
   .navLink {
