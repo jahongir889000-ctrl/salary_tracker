@@ -1,5 +1,13 @@
 // Базовый URL API
-export const API_BASE_URL = 'http://localhost:3001/api/v1';
+// В production на Vercel при едином деплое используется относительный URL '/api/v1'.
+// Если задана переменная VITE_API_URL (например, при раздельном деплое), используется она.
+// В dev-режиме по умолчанию используется http://localhost:3001/api/v1.
+const rawApiUrl = import.meta.env.VITE_API_URL;
+const isLocalhost = rawApiUrl && /localhost|127\.0\.0\.1/.test(rawApiUrl);
+
+export const API_BASE_URL = (rawApiUrl && !(import.meta.env.PROD && isLocalhost))
+  ? (rawApiUrl.endsWith('/api/v1') ? rawApiUrl : `${rawApiUrl.replace(/\/$/, '')}/api/v1`)
+  : (import.meta.env.DEV ? 'http://localhost:3001/api/v1' : '/api/v1');
 
 /**
  * Получить токен из localStorage

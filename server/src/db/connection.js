@@ -1,19 +1,67 @@
+import { createClient } from '@libsql/client';
 import sqlite3 from 'sqlite3';
 import { open } from 'sqlite';
-import { DB_PATH } from '../config/index.js';
+import { DB_PATH, TURSO_DATABASE_URL, TURSO_AUTH_TOKEN } from '../config/index.js';
 
 let db = null;
+
+/**
+ * Обертка над @libsql/client для обеспечения совместимости
+ * с интерфейсом sqlite (get, all, run, exec, close)
+ */
+class LibsqlDbWrapper {
+  constructor(client) {
+    this.client = client;
+  }
+
+  async exec(sql) {
+    await this.client.executeMultiple(sql);
+  }
+
+  async get(sql, params = []) {
+    const rs = await this.client.execute({ sql, args: params });
+    return rs.rows[0];
+  }
+
+  async all(sql, params = []) {
+    const rs = await this.client.execute({ sql, args: params });
+    return Array.from(rs.rows);
+  }
+
+  async run(sql, params = []) {
+    const rs = await this.client.execute({ sql, args: params });
+    return {
+      lastID: rs.lastInsertRowid !== undefined ? Number(rs.lastInsertRowid) : undefined,
+      changes: rs.rowsAffected,
+    };
+  }
+
+  async close() {
+    this.client.close();
+  }
+}
 
 /**
  * Инициализация подключения к базе данных и создание таблиц
  */
 export async function initDb() {
   try {
-    // Открываем соединение с SQLite
-    db = await open({
-      filename: DB_PATH,
-      driver: sqlite3.Database,
-    });
+    if (TURSO_DATABASE_URL) {
+      // Подключение к Turso (LibSQL)
+      const client = createClient({
+        url: TURSO_DATABASE_URL,
+        authToken: TURSO_AUTH_TOKEN || undefined,
+      });
+      db = new LibsqlDbWrapper(client);
+      console.log('🌐 Подключение к Turso успешно установлено');
+    } else {
+      // Открываем локальное соединение с SQLite
+      db = await open({
+        filename: DB_PATH,
+        driver: sqlite3.Database,
+      });
+      console.log('📁 Используется локальная база данных SQLite');
+    }
 
     // Включаем поддержку внешних ключей
     await db.exec('PRAGMA foreign_keys = ON;');
@@ -27,7 +75,7 @@ export async function initDb() {
         password_hash TEXT NOT NULL,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
-      )
+      );
     `);
 
     // Создаём таблицу доходов (с user_id для привязки к пользователю)
@@ -42,7 +90,7 @@ export async function initDb() {
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL,
         FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
-      )
+      );
     `);
 
     // Создаём таблицу расходов (с user_id для привязки к пользователю)
@@ -58,7 +106,7 @@ export async function initDb() {
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL,
         FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
-      )
+      );
     `);
 
     console.log('✅ База данных успешно инициализирована (включая таблицу users)');
