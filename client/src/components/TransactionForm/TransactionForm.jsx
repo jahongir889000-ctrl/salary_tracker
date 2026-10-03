@@ -1,145 +1,126 @@
 import React, { useState, useEffect } from "react";
-import styles from "./TransactionForm.module.css";
-
-// Fallback-категории на случай, если constants.js ещё не импортирован
-const FALLBACK_INCOME_CATEGORIES = [
-  { id: "salary", label: "Зарплата" },
-  { id: "freelance", label: "Подработка" },
-  { id: "other", label: "Прочее" },
-];
-
-const FALLBACK_EXPENSE_CATEGORIES = [
-  { id: "groceries", label: "Продукты" },
-  { id: "utilities", label: "Коммуналка" },
-  { id: "transport", label: "Транспорт" },
-  { id: "other", label: "Прочее" },
-];
+import { INCOME_CATEGORIES, EXPENSE_CATEGORIES } from "../../utils/constants";
 
 function TransactionForm({ onSubmit, onCancel, editData }) {
-  // Состояние формы
-  const [type, setType] = useState("expense");
-  const [category, setCategory] = useState("");
-  const [amount, setAmount] = useState("");
-  const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
-  const [comment, setComment] = useState("");
+  // Тип операции: income или expense
+  const [type, setType] = useState(editData?.type || "expense");
 
-  // Если переданы данные для редактирования — заполняем форму
+  // Поля формы
+  const [amount, setAmount] = useState(editData?.amount || "");
+  const [date, setDate] = useState(
+    editData?.date || new Date().toISOString().split("T")[0],
+  );
+  const [category, setCategory] = useState(editData?.category || "");
+  const [comment, setComment] = useState(editData?.comment || "");
+  const [isRecurring, setIsRecurring] = useState(
+    editData?.isRecurring || false,
+  );
+
+  // При смене типа операции сбрасываем категорию на первую из списка
   useEffect(() => {
-    if (editData) {
-      setType(editData?.type || "expense");
-      setCategory(editData?.category || "");
-      setAmount(editData?.amount?.toString() || "");
-      setDate(editData?.date || new Date().toISOString().split("T")[0]);
-      setComment(editData?.comment || "");
+    const categories =
+      type === "income" ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
+    if (!category || !categories.find((c) => c.id === category)) {
+      setCategory(categories[0]?.id || "");
     }
-  }, [editData]);
+  }, [type]);
 
-  // Получаем категории для текущего типа операции (fallback)
-  const categories =
-    type === "income"
-      ? FALLBACK_INCOME_CATEGORIES
-      : FALLBACK_EXPENSE_CATEGORIES;
-
-  // При смене типа сбрасываем категорию
-  const handleTypeChange = (newType) => {
-    setType(newType);
-    setCategory("");
-  };
+  // Получаем список категорий для текущего типа
+  const categories = type === "income" ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
 
   // Обработка отправки формы
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    // Валидация
-    if (!category || !amount || !date) {
-      alert("Пожалуйста, заполните все обязательные поля");
+    // Простая валидация
+    if (!amount || Number(amount) <= 0) {
+      alert("Введите корректную сумму");
       return;
     }
 
-    const transactionData = {
+    if (!date) {
+      alert("Выберите дату");
+      return;
+    }
+
+    if (!category) {
+      alert("Выберите категорию");
+      return;
+    }
+
+    // Формируем объект данных
+    const data = {
       type,
-      category,
-      amount: parseFloat(amount),
+      amount: Number(amount),
       date,
+      category,
       comment: comment.trim(),
     };
 
-    // Если редактируем — передаём id
-    if (editData?.id) {
-      transactionData.id = editData.id;
+    // Для расходов добавляем признак регулярности
+    if (type === "expense") {
+      data.isRecurring = isRecurring;
     }
 
-    onSubmit?.(transactionData);
+    onSubmit(data);
   };
 
   return (
-    <form className={styles.form} onSubmit={handleSubmit}>
+    <form className="flex flex-col gap-5" onSubmit={handleSubmit}>
       {/* Переключатель типа операции */}
-      <div className={styles.fieldGroup}>
-        <label className={styles.label}>Тип операции</label>
-        <div className={styles.typeSwitcher}>
-          <button
-            type="button"
-            className={`${styles.typeButton} ${styles.typeButtonIncome} ${type === "income" ? styles.typeButtonActive : ""}`}
-            onClick={() => handleTypeChange("income")}
-          >
-            Доход
-          </button>
-          <button
-            type="button"
-            className={`${styles.typeButton} ${styles.typeButtonExpense} ${type === "expense" ? styles.typeButtonActive : ""}`}
-            onClick={() => handleTypeChange("expense")}
-          >
-            Расход
-          </button>
-        </div>
-      </div>
-
-      {/* Категория */}
-      <div className={styles.fieldGroup}>
-        <label className={styles.label}>
-          Категория <span className={styles.required}>*</span>
-        </label>
-        <select
-          className={styles.select}
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-          required
+      <div className="grid grid-cols-2 gap-1 rounded-xl bg-surface-muted p-1">
+        <button
+          type="button"
+          onClick={() => setType("income")}
+          className={`rounded-lg px-4 py-2.5 text-sm font-semibold transition-all duration-300 sm:text-base ${
+            type === "income"
+              ? "bg-success text-white shadow-card"
+              : "text-secondary hover:bg-surface/60 hover:text-text"
+          }`}
         >
-          <option value="">Выберите категорию</option>
-          {(categories || []).map((cat) => (
-            <option key={cat.id} value={cat.id}>
-              {cat.label}
-            </option>
-          ))}
-        </select>
+          💰 Доход
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setType("expense")}
+          className={`rounded-lg px-4 py-2.5 text-sm font-semibold transition-all duration-300 sm:text-base ${
+            type === "expense"
+              ? "bg-danger text-white shadow-card"
+              : "text-secondary hover:bg-surface/60 hover:text-text"
+          }`}
+        >
+          💸 Расход
+        </button>
       </div>
 
-      {/* Сумма и дата в сетке */}
-      <div className={styles.grid}>
-        <div className={styles.fieldGroup}>
-          <label className={styles.label}>
-            Сумма (₽) <span className={styles.required}>*</span>
+      {/* Сумма и дата */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium text-text" htmlFor="amount">
+            Сумма
           </label>
           <input
+            id="amount"
             type="number"
-            className={styles.input}
-            placeholder="0"
+            className="field"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
+            placeholder="Например, 150 000"
             min="0"
-            step="0.01"
+            step="1"
             required
           />
         </div>
 
-        <div className={styles.fieldGroup}>
-          <label className={styles.label}>
-            Дата <span className={styles.required}>*</span>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium text-text" htmlFor="date">
+            Дата
           </label>
           <input
+            id="date"
             type="date"
-            className={styles.input}
+            className="field"
             value={date}
             onChange={(e) => setDate(e.target.value)}
             required
@@ -147,29 +128,75 @@ function TransactionForm({ onSubmit, onCancel, editData }) {
         </div>
       </div>
 
+      {/* Категория */}
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-medium text-text" htmlFor="category">
+          Категория
+        </label>
+        <select
+          id="category"
+          className="field cursor-pointer"
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+          required
+        >
+          {categories.map((cat) => (
+            <option key={cat.id} value={cat.id}>
+              {cat.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
       {/* Комментарий */}
-      <div className={styles.fieldGroup}>
-        <label className={styles.label}>Комментарий</label>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-medium text-text" htmlFor="comment">
+          Комментарий
+        </label>
         <textarea
-          className={styles.textarea}
-          placeholder="Необязательное поле"
+          id="comment"
+          className="field min-h-[70px] resize-y"
           value={comment}
           onChange={(e) => setComment(e.target.value)}
-          rows={3}
+          placeholder="Необязательное поле"
+          rows="2"
         />
       </div>
 
+      {/* Чекбокс регулярного расхода (только для расходов) */}
+      {type === "expense" && (
+        <label
+          htmlFor="isRecurring"
+          className="flex cursor-pointer items-center gap-3 rounded-xl bg-surface-muted px-4 py-3 transition-colors duration-300 hover:bg-surface-hover"
+        >
+          <input
+            id="isRecurring"
+            type="checkbox"
+            className="size-5 cursor-pointer accent-primary"
+            checked={isRecurring}
+            onChange={(e) => setIsRecurring(e.target.checked)}
+          />
+          <span className="text-sm text-text">Регулярный расход</span>
+        </label>
+      )}
+
       {/* Кнопки действий */}
-      <div className={styles.actions}>
+      <div className="mt-1 flex gap-3">
         <button
           type="button"
-          className={styles.cancelButton}
+          className="btn btn-ghost flex-1 bg-surface-muted"
           onClick={onCancel}
         >
           Отмена
         </button>
-        <button type="submit" className={styles.submitButton}>
-          {editData?.id ? "Сохранить" : "Добавить"}
+
+        <button
+          type="submit"
+          className={`btn flex-1 text-white ${
+            type === "income" ? "bg-success hover:bg-success-hover" : "bg-danger hover:bg-danger-hover"
+          }`}
+        >
+          {editData ? "Сохранить" : "Добавить"}
         </button>
       </div>
     </form>

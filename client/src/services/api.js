@@ -1,27 +1,39 @@
-// Базовый URL API из переменных окружения
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+// Базовый URL API
+export const API_BASE_URL = 'http://localhost:3001/api/v1';
+
+/**
+ * Получить токен из localStorage
+ * @returns {string|null} JWT-токен или null
+ */
+function getToken() {
+  return localStorage.getItem('auth_token');
+}
+
+/**
+ * Обработка ошибки авторизации (401)
+ * Очищает токен и перенаправляет на страницу входа
+ */
+function handleUnauthorized() {
+  localStorage.removeItem('auth_token');
+  localStorage.removeItem('auth_user');
+
+  // Перенаправляем на страницу входа, если ещё не там
+  if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
+    window.location.href = '/login';
+  }
+}
 
 /**
  * Универсальная функция для выполнения HTTP-запросов
- * @param {string} path - путь эндпоинта (например, '/api/v1/incomes')
- * @param {Object} options - опции запроса
- * @param {string} options.method - HTTP-метод (GET, POST, PUT, DELETE)
- * @param {Object} options.body - тело запроса (будет преобразовано в JSON)
- * @param {Object} options.params - query-параметры (будут добавлены к URL)
- * @returns {Promise<any>} данные из ответа
+ * @param {string} endpoint - путь API (например, '/incomes')
+ * @param {Object} options - настройки запроса (method, body, headers)
+ * @returns {Promise<any>} данные ответа
  */
-async function request(path, options = {}) {
-  // Формируем полный URL
-  const url = new URL(path, BASE_URL);
-  
-  // Добавляем query-параметры, если есть
-  if (options.params) {
-    Object.entries(options.params).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) {
-        url.searchParams.append(key, value);
-      }
-    });
-  }
+async function request(endpoint, options = {}) {
+  const url = `${API_BASE_URL}${endpoint}`;
+
+  // Получаем токен из localStorage
+  const token = getToken();
 
   // Формируем заголовки
   const headers = {
@@ -29,90 +41,100 @@ async function request(path, options = {}) {
     ...options.headers,
   };
 
-  try {
-    // Выполняем запрос
-    const response = await fetch(url.toString(), {
-      method: options.method || 'GET',
-      headers,
-      body: options.body ? JSON.stringify(options.body) : undefined,
-    });
+  // Если есть токен — добавляем его в заголовок Authorization
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
 
-    // Для ответов без содержимого (204 No Content) возвращаем null
+  // Формируем конфигурацию запроса
+  const config = {
+    method: options.method || 'GET',
+    headers,
+  };
+
+  // Если есть тело запроса — добавляем его
+  if (options.body) {
+    config.body = JSON.stringify(options.body);
+  }
+
+  try {
+    const response = await fetch(url, config);
+
+    // Если ответ 204 No Content — возвращаем null
     if (response.status === 204) {
       return null;
     }
 
-    // Парсим ответ
+    // Парсим JSON-ответ
     const data = await response.json();
 
-    // Проверяем, есть ли ошибка в ответе
-    if (data.error) {
-      const error = new Error(data.error.message || 'Произошла ошибка');
-      error.code = data.error.code || 'UNKNOWN_ERROR';
-      error.status = response.status;
-      throw error;
-    }
-
-    // Проверяем HTTP-статус
+    // Если статус не успешный (не 2xx) — выбрасываем ошибку
     if (!response.ok) {
-      const error = new Error(`HTTP ошибка: ${response.status} ${response.statusText}`);
-      error.status = response.status;
+      // Если 401 Unauthorized — очищаем токен и перенаправляем на вход
+      if (response.status === 401) {
+        handleUnauthorized();
+      }
+
+      const errorMessage = data.message || data.error || 'Произошла ошибка';
+      const error = new Error(errorMessage);
+      error.statusCode = response.status;
+      error.code = data.code;
       throw error;
     }
 
-    // Возвращаем данные (если есть поле data, возвращаем его, иначе весь ответ)
-    return data.data !== undefined ? data : data;
+    return data;
   } catch (error) {
-    // Обработка ошибок сети
-    if (error.name === 'TypeError' && error.message.includes('fetch')) {
-      const networkError = new Error('Не удалось подключиться к серверу. Проверьте, запущен ли backend.');
-      networkError.code = 'NETWORK_ERROR';
-      throw networkError;
+    // Если это уже наша ошибка — пробрасываем дальше
+    if (error.statusCode) {
+      throw error;
     }
-    
-    // Пробрасываем остальные ошибки
-    throw error;
+
+    // Иначе — это сетевая ошибка
+    const networkError = new Error('Не удалось подключиться к серверу. Проверьте подключение к интернету.');
+    networkError.statusCode = 0;
+    throw networkError;
   }
 }
 
 /**
  * GET-запрос
- * @param {string} path - путь эндпоинта
+ * @param {string} endpoint - путь API
  * @param {Object} params - query-параметры
- * @returns {Promise<any>} данные из ответа
+ * @returns {Promise<any>} данные ответа
  */
-export function get(path, params = {}) {
-  return request(path, { method: 'GET', params });
+export function get(endpoint, params = {}) {
+  // Формируем query-строку из параметров
+  const queryString = new URLSearchParams(params).toString();
+  const url = queryString ? `${endpoint}?${queryString}` : endpoint;
+
+  return request(url, { method: 'GET' });
 }
 
 /**
  * POST-запрос
- * @param {string} path - путь эндпоинта
+ * @param {string} endpoint - путь API
  * @param {Object} body - тело запроса
- * @returns {Promise<any>} данные из ответа
+ * @returns {Promise<any>} данные ответа
  */
-export function post(path, body) {
-  return request(path, { method: 'POST', body });
+export function post(endpoint, body) {
+  return request(endpoint, { method: 'POST', body });
 }
 
 /**
  * PUT-запрос
- * @param {string} path - путь эндпоинта
+ * @param {string} endpoint - путь API
  * @param {Object} body - тело запроса
- * @returns {Promise<any>} данные из ответа
+ * @returns {Promise<any>} данные ответа
  */
-export function put(path, body) {
-  return request(path, { method: 'PUT', body });
+export function put(endpoint, body) {
+  return request(endpoint, { method: 'PUT', body });
 }
 
 /**
  * DELETE-запрос
- * @param {string} path - путь эндпоинта
- * @returns {Promise<any>} данные из ответа
+ * @param {string} endpoint - путь API
+ * @returns {Promise<any>} данные ответа
  */
-export function del(path) {
-  return request(path, { method: 'DELETE' });
+export function del(endpoint) {
+  return request(endpoint, { method: 'DELETE' });
 }
-
-// Экспортируем базовый URL для использования в других местах (если понадобится)
-export { BASE_URL };

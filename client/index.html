@@ -1,10 +1,31 @@
 <!doctype html>
-<html lang="en">
+<html lang="ru">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>salary-tracker</title>
+    <meta name="description" content="Учёт личных финансов: доходы, расходы, аналитика" />
+    <meta name="theme-color" content="#f1f5f9" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0b1220" media="(prefers-color-scheme: dark)" />
+    <title>Salary Tracker — учёт личных финансов</title>
+    <script>
+      // Применяем тему до первой отрисовки, чтобы не было мигания светлого фона
+      (function () {
+        try {
+          var saved = localStorage.getItem("theme");
+          var isDark =
+            saved === "dark" ||
+            (!saved &&
+              window.matchMedia("(prefers-color-scheme: dark)").matches);
+          if (isDark) {
+            document.documentElement.classList.add("dark");
+            document.documentElement.style.colorScheme = "dark";
+          }
+        } catch (error) {
+          /* localStorage недоступен — остаётся светлая тема */
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

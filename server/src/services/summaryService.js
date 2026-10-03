@@ -1,18 +1,27 @@
 import { getDb } from '../db/connection.js';
-import { INCOME_CATEGORIES, EXPENSE_CATEGORIES } from '../utils/categories.js';
 
 /**
- * Получить общий баланс (сумма доходов, расходов и разницу)
+ * Получить общий баланс (сумма доходов, расходов и разницу) для конкретного пользователя
+ * @param {string} userId - идентификатор пользователя
  * @returns {Promise<Object>} { totalIncome, totalExpense, balance }
  */
-export async function getBalance() {
+export async function getBalance(userId) {
   const db = getDb();
 
-  const incomeRow = await db.get('SELECT COALESCE(SUM(amount), 0) as total FROM incomes');
-  const expenseRow = await db.get('SELECT COALESCE(SUM(amount), 0) as total FROM expenses');
+  // Сумма всех доходов пользователя
+  const incomeRow = await db.get(
+    'SELECT COALESCE(SUM(amount), 0) as total FROM incomes WHERE user_id = ?',
+    [userId]
+  );
 
-  const totalIncome = incomeRow.total;
-  const totalExpense = expenseRow.total;
+  // Сумма всех расходов пользователя
+  const expenseRow = await db.get(
+    'SELECT COALESCE(SUM(amount), 0) as total FROM expenses WHERE user_id = ?',
+    [userId]
+  );
+
+  const totalIncome = incomeRow?.total || 0;
+  const totalExpense = expenseRow?.total || 0;
   const balance = totalIncome - totalExpense;
 
   return {
@@ -23,21 +32,19 @@ export async function getBalance() {
 }
 
 /**
- * Получить сумму по категориям (для круговой диаграммы)
- * @param {string} type - тип операции ('income' или 'expense')
- * @param {Object} options - параметры фильтрации
- * @param {string} options.dateFrom - дата от (YYYY-MM-DD)
- * @param {string} options.dateTo - дата до (YYYY-MM-DD)
- * @returns {Promise<Array>} массив объектов { category, label, total }
+ * Получить сумму по категориям для конкретного пользователя
+ * @param {string} userId - идентификатор пользователя
+ * @param {Object} options - параметры фильтрации (type, dateFrom, dateTo)
+ * @returns {Promise<Array>} массив объектов { category, total, count }
  */
-export async function getByCategory(type = 'expense', options = {}) {
+export async function getByCategory(userId, options = {}) {
   const db = getDb();
+  const type = options.type === 'income' ? 'income' : 'expense';
   const table = type === 'income' ? 'incomes' : 'expenses';
-  const categories = type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
 
   // Формируем условия WHERE
-  const conditions = [];
-  const params = [];
+  const conditions = ['user_id = ?'];
+  const params = [userId];
 
   if (options.dateFrom) {
     conditions.push('date >= ?');
@@ -48,86 +55,73 @@ export async function getByCategory(type = 'expense', options = {}) {
     params.push(options.dateTo);
   }
 
-  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+  const whereClause = `WHERE ${conditions.join(' AND ')}`;
 
-  // Группируем по категориям
+  // Группируем по категории и считаем сумму и количество
   const rows = await db.all(
-    `SELECT category, SUM(amount) as total 
-     FROM ${table} ${whereClause} 
+    `SELECT category, SUM(amount) as total, COUNT(*) as count 
+     FROM ${table} 
+     ${whereClause} 
      GROUP BY category 
      ORDER BY total DESC`,
     params
   );
 
-  // Добавляем label для каждой категории
-  return rows.map(row => {
-    const categoryInfo = categories.find(cat => cat.id === row.category);
-    return {
-      category: row.category,
-      label: categoryInfo?.label || 'Прочее',
-      total: row.total,
-    };
-  });
+  return rows || [];
 }
 
 /**
- * Получить помесячную статистику (для столбчатого графика)
- * @param {Object} options - параметры фильтрации
- * @param {number} options.months - количество последних месяцев (по умолчанию 6)
+ * Получить помесячную статистику для конкретного пользователя
+ * @param {string} userId - идентификатор пользователя
+ * @param {Object} options - параметры (months - количество месяцев)
  * @returns {Promise<Array>} массив объектов { month, income, expense }
  */
-export async function getByMonth(options = {}) {
+export async function getMonthlySummary(userId, options = {}) {
   const db = getDb();
   const months = Math.max(1, Math.min(24, Number(options.months) || 6));
 
   // Получаем доходы по месяцам
-  const incomeRows = await db.all(
+  const incomesByMonth = await db.all(
     `SELECT strftime('%Y-%m', date) as month, SUM(amount) as total
      FROM incomes
+     WHERE user_id = ?
      GROUP BY month
      ORDER BY month DESC
      LIMIT ?`,
-    [months]
+    [userId, months]
   );
 
   // Получаем расходы по месяцам
-  const expenseRows = await db.all(
+  const expensesByMonth = await db.all(
     `SELECT strftime('%Y-%m', date) as month, SUM(amount) as total
      FROM expenses
+     WHERE user_id = ?
      GROUP BY month
      ORDER BY month DESC
      LIMIT ?`,
-    [months]
+    [userId, months]
   );
 
-  // Формируем словарь для быстрого доступа
-  const incomeMap = {};
-  incomeRows.forEach(row => {
-    incomeMap[row.month] = row.total;
+  // Формируем список всех месяцев за указанный период
+  const now = new Date();
+  const allMonths = [];
+  for (let i = months - 1; i >= 0; i--) {
+    const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const monthStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    allMonths.push(monthStr);
+  }
+
+  // Объединяем данные
+  const result = allMonths.map((month) => {
+    const incomeRow = incomesByMonth?.find((row) => row.month === month);
+    const expenseRow = expensesByMonth?.find((row) => row.month === month);
+
+    return {
+      month,
+      income: incomeRow?.total || 0,
+      expense: expenseRow?.total || 0,
+    };
   });
 
-  const expenseMap = {};
-  expenseRows.forEach(row => {
-    expenseMap[row.month] = row.total;
-  });
-
-  // Собираем все уникальные месяцы
-  const allMonths = new Set([
-    ...Object.keys(incomeMap),
-    ...Object.keys(expenseMap),
-  ]);
-
-  // Сортируем месяцы и берём последние N
-  const sortedMonths = Array.from(allMonths)
-    .sort()
-    .reverse()
-    .slice(0, months)
-    .reverse();
-
-  // Формируем результат
-  return sortedMonths.map(month => ({
-    month,
-    income: incomeMap[month] || 0,
-    expense: expenseMap[month] || 0,
-  }));
+  return result;
 }

@@ -1,156 +1,233 @@
-import React, { useState, useEffect } from 'react';
-import styles from './History.module.css';
-import TransactionList from '../../components/TransactionList/TransactionList';
-import Modal from '../../components/Modal/Modal';
-import TransactionForm from '../../components/TransactionForm/TransactionForm';
-import { getAllTransactions } from '../../services/summaryService';
-import { addIncome, updateIncome, deleteIncome } from '../../services/incomeService';
-import { addExpense, updateExpense, deleteExpense } from '../../services/expenseService';
-import { INCOME_CATEGORIES, EXPENSE_CATEGORIES } from '../../utils/constants';
-import { isDateInPeriod } from '../../utils/formatters';
+import React, { useState, useEffect } from "react";
+import TransactionList from "../../components/TransactionList/TransactionList";
+import Modal from "../../components/Modal/Modal";
+import ConfirmModal from "../../components/ConfirmModal/ConfirmModal";
+import TransactionForm from "../../components/TransactionForm/TransactionForm";
+import { getAllTransactions } from "../../services/summaryService";
+import { addIncome, updateIncome, deleteIncome } from "../../services/incomeService";
+import { addExpense, updateExpense, deleteExpense } from "../../services/expenseService";
+import { INCOME_CATEGORIES, EXPENSE_CATEGORIES } from "../../utils/constants";
+import { isDateInPeriod } from "../../utils/formatters";
 
 function History() {
-  const [typeFilter, setTypeFilter] = useState('all');
-  const [categoryFilter, setCategoryFilter] = useState('all');
-  const [periodFilter, setPeriodFilter] = useState('all');
+  // Состояние фильтров
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [periodFilter, setPeriodFilter] = useState("all");
 
+  // Состояние модалки
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState(null);
+
+  // Состояние данных
+  const [allTransactions, setAllTransactions] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const [allTransactions, setAllTransactions] = useState([]);
+  // Состояние для модалки подтверждения удаления
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [transactionToDelete, setTransactionToDelete] = useState(null);
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
+  // Функция загрузки данных
   const loadData = async () => {
     try {
       setIsLoading(true);
       const transactions = await getAllTransactions();
-      setAllTransactions(transactions);
+      setAllTransactions(Array.isArray(transactions) ? transactions : []);
     } catch (error) {
-      console.error('Ошибка загрузки истории:', error);
+      console.error("Ошибка загрузки истории:", error);
+      alert("Не удалось загрузить историю операций. Проверьте, запущен ли сервер.");
     } finally {
       setIsLoading(false);
     }
   };
 
+  // Загрузка данных при монтировании компонента
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  // Получаем категории для текущего фильтра типа
   const getCategoriesForFilter = () => {
-    if (typeFilter === 'income') return INCOME_CATEGORIES;
-    if (typeFilter === 'expense') return EXPENSE_CATEGORIES;
-    
-    // Объединяем и удаляем дубликаты по id (например, 'other' есть в обоих списках)
-    const allCats = [...INCOME_CATEGORIES, ...EXPENSE_CATEGORIES];
-    return Array.from(new Map(allCats.map(item => [item.id, item])).values());
+    if (typeFilter === "income") {
+      return INCOME_CATEGORIES;
+    } else if (typeFilter === "expense") {
+      return EXPENSE_CATEGORIES;
+    } else {
+      return [...INCOME_CATEGORIES, ...EXPENSE_CATEGORIES];
+    }
   };
-  
-  
+
+  // Фильтрация операций
   const filteredTransactions = (allTransactions || []).filter((transaction) => {
-    if (typeFilter !== 'all' && transaction?.type !== typeFilter) return false;
-    if (categoryFilter !== 'all' && transaction?.category !== categoryFilter) return false;
+    if (typeFilter !== "all" && transaction?.type !== typeFilter) return false;
+    if (categoryFilter !== "all" && transaction?.category !== categoryFilter)
+      return false;
     if (!isDateInPeriod(transaction?.date, periodFilter)) return false;
     return true;
   });
 
+  // Открытие модалки для добавления
   const handleOpenAddModal = () => {
     setEditingTransaction(null);
     setIsModalOpen(true);
   };
 
+  // Открытие модалки для редактирования
   const handleOpenEditModal = (transaction) => {
     setEditingTransaction(transaction);
     setIsModalOpen(true);
   };
 
+  // Закрытие модалки
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setEditingTransaction(null);
   };
 
+  // Обработка отправки формы (добавление или редактирование)
   const handleSubmit = async (data) => {
     try {
       if (editingTransaction?.id) {
-        if (data.type === 'income') {
+        // Редактирование существующей операции
+        if (data.type === "income") {
           await updateIncome(editingTransaction.id, data);
         } else {
           await updateExpense(editingTransaction.id, data);
         }
       } else {
-        if (data.type === 'income') {
+        // Добавление новой операции
+        if (data.type === "income") {
           await addIncome(data);
         } else {
           await addExpense(data);
         }
       }
+
       await loadData();
       handleCloseModal();
     } catch (error) {
-      console.error('Ошибка при сохранении операции:', error);
-      alert('Не удалось сохранить операцию. Проверьте консоль.');
+      console.error("Ошибка сохранения операции:", error);
+      alert(`Ошибка: ${error.message}`);
     }
   };
 
-  const handleDelete = async (transaction) => {
+  // Открытие модалки подтверждения удаления
+  const handleDelete = (transaction) => {
     if (!transaction?.id) return;
-    const confirmed = window.confirm('Вы уверены, что хотите удалить эту операцию?');
-    if (!confirmed) return;
+    setTransactionToDelete(transaction);
+    setIsConfirmModalOpen(true);
+  };
+
+  // Подтверждение удаления
+  const handleConfirmDelete = async () => {
+    if (!transactionToDelete?.id) return;
 
     try {
-      if (transaction.type === 'income') {
-        await deleteIncome(transaction.id);
+      if (transactionToDelete.type === "income") {
+        await deleteIncome(transactionToDelete.id);
       } else {
-        await deleteExpense(transaction.id);
+        await deleteExpense(transactionToDelete.id);
       }
       await loadData();
     } catch (error) {
-      console.error('Ошибка при удалении операции:', error);
-      alert('Не удалось удалить операцию.');
+      console.error("Ошибка удаления операции:", error);
+      alert("Не удалось удалить операцию");
+    } finally {
+      setTransactionToDelete(null);
     }
   };
 
-  const handleResetFilters = () => {
-    setTypeFilter('all');
-    setCategoryFilter('all');
-    setPeriodFilter('all');
+  // Закрытие модалки подтверждения
+  const handleCloseConfirmModal = () => {
+    setIsConfirmModalOpen(false);
+    setTransactionToDelete(null);
   };
 
+  // Сброс фильтров
+  const handleResetFilters = () => {
+    setTypeFilter("all");
+    setCategoryFilter("all");
+    setPeriodFilter("all");
+  };
+
+  // Смена типа фильтра — сбрасываем фильтр по категории
   const handleTypeFilterChange = (newType) => {
     setTypeFilter(newType);
-    setCategoryFilter('all');
+    setCategoryFilter("all");
   };
 
   if (isLoading) {
-    return <div className={styles.loading}>Загрузка истории...</div>;
+    return (
+      <div className="flex min-h-[50vh] flex-col items-center justify-center gap-3 text-secondary">
+        <span className="size-9 animate-spin rounded-full border-[3px] border-border border-t-primary" />
+        <p className="animate-shimmer text-sm">
+          Загрузка истории операций...
+        </p>
+      </div>
+    );
   }
 
   return (
-    <div className={styles.history}>
-      <h1 className={styles.title}>История операций</h1>
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="page-title">История операций</h1>
 
-      <div className={styles.filters}>
-        <div className={styles.filterGroup}>
-          <label className={styles.filterLabel}>Тип операции</label>
-          <select className={styles.filterInput} value={typeFilter} onChange={(e) => handleTypeFilterChange(e.target.value)}>
+        <button
+          type="button"
+          onClick={handleOpenAddModal}
+          className="btn btn-primary px-4 py-2 text-sm"
+        >
+          + Добавить операцию
+        </button>
+      </div>
+
+      {/* Панель фильтров */}
+      <div className="card animate-rise grid gap-4 p-5 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium text-secondary" htmlFor="typeFilter">
+            Тип операции
+          </label>
+          <select
+            id="typeFilter"
+            className="field cursor-pointer"
+            value={typeFilter}
+            onChange={(e) => handleTypeFilterChange(e.target.value)}
+          >
             <option value="all">Все</option>
             <option value="income">Доходы</option>
             <option value="expense">Расходы</option>
           </select>
         </div>
 
-        <div className={styles.filterGroup}>
-          <label className={styles.filterLabel}>Категория</label>
-          <select className={styles.filterInput} value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium text-secondary" htmlFor="categoryFilter">
+            Категория
+          </label>
+          <select
+            id="categoryFilter"
+            className="field cursor-pointer"
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+          >
             <option value="all">Все категории</option>
-            {getCategoriesForFilter().map((cat) => (
-              <option key={cat.id} value={cat.id}>{cat.label}</option>
+            {(getCategoriesForFilter() || []).map((cat) => (
+              <option key={cat.id} value={cat.id}>
+                {cat.label}
+              </option>
             ))}
           </select>
         </div>
 
-        <div className={styles.filterGroup}>
-          <label className={styles.filterLabel}>Период</label>
-          <select className={styles.filterInput} value={periodFilter} onChange={(e) => setPeriodFilter(e.target.value)}>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium text-secondary" htmlFor="periodFilter">
+            Период
+          </label>
+          <select
+            id="periodFilter"
+            className="field cursor-pointer"
+            value={periodFilter}
+            onChange={(e) => setPeriodFilter(e.target.value)}
+          >
             <option value="all">Всё время</option>
             <option value="today">Сегодня</option>
             <option value="week">Неделя</option>
@@ -159,10 +236,28 @@ function History() {
           </select>
         </div>
 
-        <button className={styles.resetButton} onClick={handleResetFilters}>Сбросить фильтры</button>
+        <div className="flex items-end">
+          <button
+            type="button"
+            className="btn btn-ghost w-full bg-surface-muted"
+            onClick={handleResetFilters}
+          >
+            Сбросить фильтры
+          </button>
+        </div>
       </div>
 
-      <div className={styles.listContainer}>
+      {/* Список операций */}
+      <div className="card animate-rise p-5 sm:p-6" style={{ animationDelay: "80ms" }}>
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-lg font-bold tracking-tight text-text">
+            Операции
+          </h2>
+          <span className="rounded-full bg-surface-muted px-3 py-1 text-sm font-medium tabular-nums text-secondary transition-colors duration-500">
+            {filteredTransactions.length}
+          </span>
+        </div>
+
         <TransactionList
           transactions={filteredTransactions}
           onEdit={handleOpenEditModal}
@@ -170,9 +265,30 @@ function History() {
         />
       </div>
 
-      <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={editingTransaction ? 'Редактировать операцию' : 'Новая операция'}>
-        <TransactionForm onSubmit={handleSubmit} onCancel={handleCloseModal} editData={editingTransaction} />
+      {/* Модальное окно с формой */}
+      <Modal
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        title={editingTransaction ? "Редактировать операцию" : "Новая операция"}
+      >
+        <TransactionForm
+          onSubmit={handleSubmit}
+          onCancel={handleCloseModal}
+          editData={editingTransaction}
+        />
       </Modal>
+
+      {/* Модальное окно подтверждения удаления */}
+      <ConfirmModal
+        isOpen={isConfirmModalOpen}
+        onClose={handleCloseConfirmModal}
+        onConfirm={handleConfirmDelete}
+        title="Удалить операцию?"
+        message="Вы уверены, что хотите удалить эту операцию? Это действие нельзя отменить."
+        confirmText="Удалить"
+        cancelText="Отмена"
+        variant="danger"
+      />
     </div>
   );
 }

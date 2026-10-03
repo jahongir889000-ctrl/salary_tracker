@@ -7,11 +7,12 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import styles from "./PieChart.module.css";
+import { useTheme } from "../../context/ThemeContext";
+import { ChartPlaceholder, ChartTooltip } from "../ChartShared/ChartShared";
 
 // Цвета для секторов диаграммы
 const COLORS = [
-  "#2563eb",
+  "#3b82f6",
   "#10b981",
   "#f59e0b",
   "#ef4444",
@@ -23,69 +24,64 @@ const COLORS = [
   "#84cc16",
 ];
 
-function PieChart({ data, title }) {
+function PieChart({ data }) {
+  const { isDark } = useTheme();
+  const textColor = isDark ? "#94a3b8" : "#64748b";
+
   // Если данных нет — показываем заглушку
   if (!data || data.length === 0) {
     return (
-      <div className={styles.placeholder}>
-        <div style={{ fontSize: "48px", marginBottom: "16px" }}>📊</div>
-        <p>Данные для графика отсутствуют</p>
-      </div>
+      <ChartPlaceholder icon="📊" text="Данные для графика отсутствуют" />
     );
   }
 
-  // Форматирование tooltip
-  const renderTooltip = ({ active, payload }) => {
-    if (active && payload && payload.length) {
-      const data = payload[0];
-      return (
-        <div className={styles.tooltip}>
-          <p className={styles.tooltipLabel}>{data.name}</p>
-          <p className={styles.tooltipValue}>
-            {data.value.toLocaleString("ru-RU")} ₽
-          </p>
-        </div>
-      );
-    }
-    return null;
-  };
-
   return (
-    <div className={styles.chartWrapper}>
-      <ResponsiveContainer width="100%" height={300}>
-        <RechartsPieChart>
-          <Pie
-            data={data}
-            cx="50%"
-            cy="50%"
-            labelLine={false}
-            label={({ name, percent }) =>
-              `${name}: ${(percent * 100).toFixed(0)}%`
-            }
-            outerRadius={100}
-            fill="#8884d8"
-            dataKey="value"
-          >
-            {(data || []).map((entry, index) => (
-              <Cell
-                key={`cell-${index}`}
-                fill={COLORS[index % COLORS.length]}
-              />
-            ))}
-          </Pie>
-          <Tooltip content={renderTooltip} />
-          <Legend
-            verticalAlign="bottom"
-            height={36}
-            formatter={(value) => (
-              <span style={{ color: "#1f2937", fontSize: "14px" }}>
-                {value}
-              </span>
-            )}
-          />
-        </RechartsPieChart>
-      </ResponsiveContainer>
-    </div>
+    // key по теме перерисовывает график с анимацией при смене темы
+    <ResponsiveContainer
+      width="100%"
+      height={320}
+      key={isDark ? "dark" : "light"}
+    >
+      <RechartsPieChart>
+        <Pie
+          data={data}
+          cx="50%"
+          cy="50%"
+          labelLine={false}
+          label={({ name, percent }) => (
+            <text
+              fill={textColor}
+              fontSize={12}
+              fontWeight={500}
+              textAnchor="middle"
+            >
+              {`${name}: ${(percent * 100).toFixed(0)}%`}
+            </text>
+          )}
+          outerRadius={110}
+          innerRadius={55}
+          paddingAngle={2}
+          stroke="none"
+          dataKey="value"
+          animationDuration={800}
+          animationEasing="ease-out"
+        >
+          {(data || []).map((entry, index) => (
+            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+          ))}
+        </Pie>
+
+        <Tooltip content={<ChartTooltip />} />
+        <Legend
+          verticalAlign="bottom"
+          height={44}
+          iconType="circle"
+          formatter={(value) => (
+            <span style={{ color: textColor, fontSize: 13 }}>{value}</span>
+          )}
+        />
+      </RechartsPieChart>
+    </ResponsiveContainer>
   );
 }
 

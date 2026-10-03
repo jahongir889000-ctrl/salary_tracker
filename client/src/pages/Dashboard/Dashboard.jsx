@@ -1,155 +1,214 @@
-import React, { useState, useEffect } from 'react';
-import styles from './Dashboard.module.css';
-import BalanceCard from '../../components/BalanceCard/BalanceCard';
-import EmptyState from '../../components/EmptyState/EmptyState';
-import Modal from '../../components/Modal/Modal';
-import TransactionForm from '../../components/TransactionForm/TransactionForm';
-import TransactionList from '../../components/TransactionList/TransactionList';
-import { getBalance, getAllTransactions } from '../../services/summaryService';
-import { addIncome, updateIncome, deleteIncome } from '../../services/incomeService';
-import { addExpense, updateExpense, deleteExpense } from '../../services/expenseService';
+import React, { useState, useEffect } from "react";
+import BalanceCard from "../../components/BalanceCard/BalanceCard";
+import TransactionList from "../../components/TransactionList/TransactionList";
+import TransactionForm from "../../components/TransactionForm/TransactionForm";
+import Modal from "../../components/Modal/Modal";
+import ConfirmDialog from "../../components/ConfirmDialog/ConfirmDialog";
+import {
+  getBalance,
+  getIncomes,
+  getExpenses,
+  createIncome,
+  createExpense,
+  deleteIncome,
+  deleteExpense,
+} from "../../services/transactionService";
 
 function Dashboard() {
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [editingTransaction, setEditingTransaction] = useState(null);
-  
-  const [balanceData, setBalanceData] = useState({ totalIncome: 0, totalExpense: 0, balance: 0 });
+  const [balance, setBalance] = useState({
+    totalIncome: 0,
+    totalExpense: 0,
+    balance: 0,
+  });
   const [recentTransactions, setRecentTransactions] = useState([]);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState(null);
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
+  // Загрузка данных
   const loadData = async () => {
     try {
       setIsLoading(true);
-      const balance = await getBalance();
-      setBalanceData(balance);
+      const [balanceData, incomesData, expensesData] = await Promise.all([
+        getBalance(),
+        getIncomes({ limit: 5 }),
+        getExpenses({ limit: 5 }),
+      ]);
 
-      const transactions = await getAllTransactions(5);
-      setRecentTransactions(transactions);
+      setBalance(balanceData);
+
+      // Объединяем доходы и расходы, сортируем по дате
+      const allTransactions = [
+        ...(incomesData.data || []),
+        ...(expensesData.data || []),
+      ].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+      setRecentTransactions(allTransactions.slice(0, 5));
     } catch (error) {
-      console.error('Ошибка загрузки данных Dashboard:', error);
+      console.error("Ошибка загрузки данных:", error);
+      alert("Не удалось загрузить данные");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleOpenAddModal = () => {
-    setEditingTransaction(null);
-    setIsModalOpen(true);
-  };
+  useEffect(() => {
+    loadData();
+  }, []);
 
-  const handleOpenEditModal = (transaction) => {
-    setEditingTransaction(transaction);
-    setIsModalOpen(true);
-  };
-
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-    setEditingTransaction(null);
-  };
-
+  // Обработка добавления/редактирования
   const handleSubmit = async (data) => {
     try {
-      if (editingTransaction?.id) {
-        // Режим редактирования
-        if (data.type === 'income') {
-          await updateIncome(editingTransaction.id, data);
-        } else {
-          await updateExpense(editingTransaction.id, data);
-        }
-      } else {
-        // Режим создания
-        if (data.type === 'income') {
-          await addIncome(data);
-        } else {
-          await addExpense(data);
-        }
+      if (editingTransaction) {
+        // Редактирование (пока не реализовано в этом упрощённом варианте)
+        alert("Редактирование пока не поддерживается на главной странице");
+        return;
       }
+
+      if (data.type === "income") {
+        await createIncome(data);
+      } else {
+        await createExpense(data);
+      }
+
+      setIsFormOpen(false);
+      setEditingTransaction(null);
       await loadData();
-      handleCloseModal();
     } catch (error) {
-      console.error('Ошибка при сохранении операции:', error);
-      alert('Не удалось сохранить операцию. Проверьте консоль.');
+      console.error("Ошибка сохранения:", error);
+      alert(error.message || "Не удалось сохранить операцию");
     }
   };
 
-  const handleDelete = async (transaction) => {
-    if (!transaction?.id) return;
-    const confirmed = window.confirm('Вы уверены, что хотите удалить эту операцию?');
-    if (!confirmed) return;
+  // Обработка удаления
+  const handleDelete = async () => {
+    if (!deleteConfirm) return;
 
     try {
-      if (transaction.type === 'income') {
-        await deleteIncome(transaction.id);
+      if (deleteConfirm.type === "income") {
+        await deleteIncome(deleteConfirm.id);
       } else {
-        await deleteExpense(transaction.id);
+        await deleteExpense(deleteConfirm.id);
       }
+
+      setDeleteConfirm(null);
       await loadData();
     } catch (error) {
-      console.error('Ошибка при удалении операции:', error);
-      alert('Не удалось удалить операцию.');
+      console.error("Ошибка удаления:", error);
+      alert("Не удалось удалить операцию");
     }
   };
 
   if (isLoading) {
-    return <div className={styles.loading}>Загрузка данных...</div>;
+    return (
+      <div className="flex min-h-[50vh] flex-col items-center justify-center gap-3 text-secondary">
+        <span className="size-9 animate-spin rounded-full border-[3px] border-border border-t-primary" />
+        <p className="animate-shimmer text-sm">Загрузка данных...</p>
+      </div>
+    );
   }
 
   return (
-    <div className={styles.dashboard}>
-      <h1 className={styles.title}>Главная</h1>
-      
-      <div className={styles.balanceGrid}>
+    <div className="flex flex-col gap-8">
+      <h1 className="page-title">Главная</h1>
+
+      {/* Карточки баланса */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <BalanceCard
           title="Доходы"
-          amount={balanceData.totalIncome}
-          color="#39ff14"
-          icon="💰"
+          amount={balance.totalIncome}
+          color="var(--success)"
         />
         <BalanceCard
           title="Расходы"
-          amount={balanceData.totalExpense}
-          color="#ff2a6d"
-          icon="💸"
+          amount={balance.totalExpense}
+          color="var(--danger)"
         />
         <BalanceCard
           title="Баланс"
-          amount={balanceData.balance}
-          color="#00f0ff"
-          icon="💎"
+          amount={balance.balance}
+          color="var(--primary)"
         />
       </div>
 
-      <div className={styles.recentSection}>
-        <div className={styles.sectionHeader}>
-          <h2 className={styles.sectionTitle}>Последние операции</h2>
+      {/* Последние операции */}
+      <section className="card animate-rise p-5 sm:p-6" style={{ animationDelay: "120ms" }}>
+        <div className="mb-4 flex items-center justify-between gap-4">
+          <h2 className="text-lg font-bold tracking-tight text-text">
+            Последние операции
+          </h2>
+
+          <button
+            type="button"
+            onClick={() => {
+              setEditingTransaction(null);
+              setIsFormOpen(true);
+            }}
+            className="btn btn-primary hidden px-3.5 py-2 text-sm sm:inline-flex"
+          >
+            + Добавить
+          </button>
         </div>
-        
-        <TransactionList
-          transactions={recentTransactions}
-          onEdit={handleOpenEditModal}
-          onDelete={handleDelete}
-        />
-      </div>
 
-      <button className={styles.addButton} onClick={handleOpenAddModal} title="Добавить операцию">
+        {recentTransactions.length > 0 ? (
+          <TransactionList
+            transactions={recentTransactions}
+            onDelete={(transaction) => setDeleteConfirm(transaction)}
+            onEdit={(transaction) => {
+              setEditingTransaction(transaction);
+              setIsFormOpen(true);
+            }}
+          />
+        ) : (
+          <div className="animate-fade-in rounded-2xl border-2 border-dashed border-border px-6 py-12 text-center">
+            <p className="mb-1 font-medium text-secondary">
+              Операций пока нет
+            </p>
+            <p className="text-sm text-secondary/70">
+              Нажмите кнопку «+», чтобы добавить первую операцию
+            </p>
+          </div>
+        )}
+      </section>
+
+      {/* Кнопка добавления (FAB) */}
+      <button
+        type="button"
+        onClick={() => {
+          setEditingTransaction(null);
+          setIsFormOpen(true);
+        }}
+        title="Добавить операцию"
+        aria-label="Добавить операцию"
+        className="fixed bottom-6 right-6 z-40 grid size-14 place-items-center rounded-full bg-primary text-3xl font-light text-on-primary shadow-pop transition-all duration-300 hover:scale-110 hover:bg-primary-hover active:scale-95 sm:size-15"
+      >
         +
       </button>
 
-      <Modal 
-        isOpen={isModalOpen} 
-        onClose={handleCloseModal} 
-        title={editingTransaction ? 'Редактировать операцию' : 'Новая операция'}
-      >
-        <TransactionForm 
-          onSubmit={handleSubmit} 
-          onCancel={handleCloseModal}
-          editData={editingTransaction}
+      {/* Модальное окно формы */}
+      {isFormOpen && (
+        <Modal onClose={() => setIsFormOpen(false)}>
+          <TransactionForm
+            onSubmit={handleSubmit}
+            onCancel={() => {
+              setIsFormOpen(false);
+              setEditingTransaction(null);
+            }}
+            editData={editingTransaction}
+          />
+        </Modal>
+      )}
+
+      {/* Диалог подтверждения удаления */}
+      {deleteConfirm && (
+        <ConfirmDialog
+          title="Удалить операцию?"
+          message="Вы уверены, что хотите удалить эту операцию? Это действие нельзя отменить."
+          onConfirm={handleDelete}
+          onCancel={() => setDeleteConfirm(null)}
         />
-      </Modal>
+      )}
     </div>
   );
 }

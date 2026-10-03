@@ -1,5 +1,4 @@
 import React from "react";
-import styles from "./EmptyState.module.css";
 
 function EmptyState({
   title,
@@ -9,15 +8,19 @@ function EmptyState({
   icon = "📊",
 }) {
   return (
-    <div className={styles.emptyState}>
-      <div className={styles.icon}>{icon}</div>
+    <div className="animate-pop flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border bg-surface px-6 py-12 text-center">
+      <span className="animate-float text-5xl">{icon}</span>
 
-      {title && <h3 className={styles.title}>{title}</h3>}
+      {title && (
+        <h3 className="text-lg font-semibold text-text">{title}</h3>
+      )}
 
-      {description && <p className={styles.description}>{description}</p>}
+      {description && (
+        <p className="max-w-sm text-sm text-secondary">{description}</p>
+      )}
 
       {actionLabel && (
-        <button className={styles.actionButton} onClick={onAction}>
+        <button type="button" className="btn btn-primary mt-1" onClick={onAction}>
           {actionLabel}
         </button>
       )}

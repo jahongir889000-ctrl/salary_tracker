@@ -53,30 +53,3 @@ export const CATEGORY_ICONS = {
   // Прочее
   other: '📦',
 };
-
-// ... (в конце файла, после экспорта CATEGORY_ICONS)
-
-/**
- * Получить текстовое название категории по её ID
- * @param {string} categoryId - ID категории
- * @param {string} type - тип операции ('income' или 'expense')
- * @returns {string} название категории
- */
-export const getCategoryLabel = (categoryId, type = 'expense') => {
-  const categories = type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
-  const category = categories.find(cat => cat.id === categoryId);
-  return category?.label || 'Прочее';
-};
-
-/**
- * Получить иконку категории по её ID
- * @param {string} categoryId - ID категории
- * @param {string} type - тип операции ('income' или 'expense')
- * @returns {string} эмодзи-иконка
- */
-export const getCategoryIcon = (categoryId, type = 'expense') => {
-  if (CATEGORY_ICONS[categoryId]) {
-    return CATEGORY_ICONS[categoryId];
-  }
-  return type === 'income' ? '💰' : '💸';
-};
